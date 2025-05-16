@@ -1,16 +1,20 @@
-import openai
-import os
 from typing import List, Dict
-import json
 from datetime import datetime
 
 class GoalPlanner:
     def __init__(self):
-        self.openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Define common patterns for goal breakdown
+        self.patterns = {
+            "find": ["search", "write_email", "send_email"],
+            "research": ["search", "summarize", "write_email"],
+            "outreach": ["search", "write_email", "send_email"],
+            "contact": ["search", "write_email", "send_email"],
+            "connect": ["search", "write_email", "send_email"]
+        }
     
     def break_down_goal(self, goal: str) -> List[Dict]:
         """
-        Break down a high-level goal into specific, actionable steps using GPT-4.
+        Break down a high-level goal into specific, actionable steps using pattern matching.
         
         Args:
             goal (str): The high-level goal provided by the user
@@ -22,47 +26,47 @@ class GoalPlanner:
                 - tool: Which tool to use
                 - status: Current status (pending, in_progress, completed)
         """
-        prompt = f"""
-        Break down the following goal into specific, actionable steps:
-        "{goal}"
+        # Convert goal to lowercase for pattern matching
+        goal_lower = goal.lower()
         
-        For each step, specify:
-        1. A clear description of what needs to be done
-        2. Which tool should be used (search, summarize, write_email, send_email)
-        3. Any specific parameters or requirements
+        # Determine the type of goal based on keywords
+        goal_type = None
+        for keyword in self.patterns:
+            if keyword in goal_lower:
+                goal_type = keyword
+                break
         
-        Format the response as a JSON array of steps.
-        """
-        
-        try:
-            response = self.openai_client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are a task planning expert. Break down goals into clear, actionable steps."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
-            
-            # Parse the response and add metadata
-            steps = json.loads(response.choices[0].message.content)["steps"]
-            
-            # Add metadata to each step
-            for i, step in enumerate(steps):
-                step["step_id"] = i + 1
-                step["status"] = "pending"
-                step["created_at"] = datetime.now().isoformat()
-            
-            return steps
-            
-        except Exception as e:
-            # Log the error and retry with a simpler prompt
-            print(f"Error in goal breakdown: {str(e)}")
+        # If no pattern matches, use default steps
+        if goal_type is None:
             return self._fallback_breakdown(goal)
+        
+        # Create steps based on the pattern
+        steps = []
+        for i, tool in enumerate(self.patterns[goal_type], 1):
+            step = {
+                "step_id": i,
+                "description": self._get_step_description(tool, goal),
+                "tool": tool,
+                "status": "pending",
+                "created_at": datetime.now().isoformat()
+            }
+            steps.append(step)
+        
+        return steps
+    
+    def _get_step_description(self, tool: str, goal: str) -> str:
+        """Generate a description for a step based on the tool and goal."""
+        descriptions = {
+            "search": f"Research and find relevant leads for: {goal}",
+            "summarize": "Generate summaries of the found leads and their companies",
+            "write_email": "Create personalized outreach emails for each lead",
+            "send_email": "Send the prepared emails to the leads"
+        }
+        return descriptions.get(tool, f"Execute {tool} step for: {goal}")
     
     def _fallback_breakdown(self, goal: str) -> List[Dict]:
         """
-        A simpler fallback method for breaking down goals if the main method fails.
+        A simpler fallback method for breaking down goals if no pattern matches.
         """
         return [
             {

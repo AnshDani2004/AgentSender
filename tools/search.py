@@ -1,17 +1,35 @@
-import openai
-import os
 from typing import List, Dict
-import json
 from datetime import datetime
 
 class LeadSearcher:
     def __init__(self):
-        self.openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.mock_leads = [
+            {
+                "name": "Sarah Chen",
+                "company": "AI Vision Labs",
+                "role": "CEO & Co-founder",
+                "email": "sarah@aivisionlabs.com",
+                "company_description": "Building computer vision solutions for healthcare diagnostics"
+            },
+            {
+                "name": "Michael Rodriguez",
+                "company": "NLP Innovations",
+                "role": "Founder & CTO",
+                "email": "michael@nlpinnovations.com",
+                "company_description": "Developing advanced natural language processing tools for enterprise"
+            },
+            {
+                "name": "Emma Thompson",
+                "company": "RoboLearn",
+                "role": "CEO",
+                "email": "emma@robolearn.ai",
+                "company_description": "Creating AI-powered educational robots for children"
+            }
+        ]
     
     def search_leads(self, query: str, num_leads: int = 5) -> List[Dict]:
         """
-        Search for leads based on a query. Currently uses GPT to simulate search results.
-        In the future, this can be connected to real search APIs.
+        Search for leads based on a query. Uses mock data for testing.
         
         Args:
             query (str): Search query (e.g., "AI startup founders")
@@ -22,45 +40,18 @@ class LeadSearcher:
                 - name: Lead's name
                 - company: Company name
                 - role: Their role
-                - email: Email address (simulated for now)
+                - email: Email address
                 - company_description: Brief company description
         """
-        prompt = f"""
-        Generate {num_leads} realistic but fictional leads for the following search query:
-        "{query}"
+        # Return a subset of mock leads based on num_leads
+        leads = self.mock_leads[:min(num_leads, len(self.mock_leads))]
         
-        For each lead, provide:
-        1. Full name
-        2. Company name
-        3. Role/title
-        4. Professional email address
-        5. Brief company description
+        # Add metadata to each lead
+        for lead in leads:
+            lead["found_at"] = datetime.now().isoformat()
+            lead["source"] = "mock_data"
         
-        Format the response as a JSON array of leads.
-        """
-        
-        try:
-            response = self.openai_client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are a lead generation expert. Generate realistic but fictional leads."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"}
-            )
-            
-            leads = json.loads(response.choices[0].message.content)["leads"]
-            
-            # Add metadata to each lead
-            for lead in leads:
-                lead["found_at"] = datetime.now().isoformat()
-                lead["source"] = "simulated_search"  # Will be replaced with real source in future
-            
-            return leads
-            
-        except Exception as e:
-            print(f"Error in lead search: {str(e)}")
-            return self._generate_fallback_leads(query, num_leads)
+        return leads
     
     def _generate_fallback_leads(self, query: str, num_leads: int) -> List[Dict]:
         """

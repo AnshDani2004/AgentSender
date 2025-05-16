@@ -1,20 +1,29 @@
 from typing import Dict, List
 from planner import GoalPlanner
 from tools.search import LeadSearcher
+from tools.write_email import EmailWriter
+from tools.send_email import EmailSender
 from memory.storage import MemoryStorage
 import time
 
 class AgentSender:
-    def __init__(self):
+    def __init__(self, tone: str = "professional"):
         self.planner = GoalPlanner()
         self.searcher = LeadSearcher()
+        self.writer = EmailWriter()
+        self.sender = EmailSender()
         self.memory = MemoryStorage()
         self.current_goal = None
         self.current_steps = []
+        self.leads = []
+        self.emails = []
+        self.tone = tone
     
-    def set_goal(self, goal: str):
+    def set_goal(self, goal: str, tone: str = None):
         """Set a new goal and break it down into steps."""
         self.current_goal = goal
+        if tone:
+            self.tone = tone
         self.current_steps = self.planner.break_down_goal(goal)
         
         # Log the initial goal and steps
@@ -31,9 +40,23 @@ class AgentSender:
         
         try:
             if step["tool"] == "search":
-                result = self.searcher.search_leads(step["description"])
-                self.memory.save_leads(result)
-            # Add other tool handlers here as they are implemented
+                self.leads = self.searcher.search_leads(step["description"])
+                self.memory.save_leads(self.leads)
+                result = self.leads
+            elif step["tool"] == "write_email":
+                if not self.leads:
+                    self.leads = self.memory.get_all_leads()
+                self.emails = self.writer.write_emails(self.leads, tone=self.tone)
+                for email in self.emails:
+                    self.memory.save_email(email)
+                result = self.emails
+            elif step["tool"] == "send_email":
+                if not self.emails:
+                    self.emails = self.memory.get_all_emails()
+                send_results = self.sender.send_emails(self.emails)
+                for res in send_results:
+                    self.memory.save_step({"type": "email_send_result", **res})
+                result = send_results
             else:
                 result = {"error": f"Tool {step['tool']} not implemented yet"}
             

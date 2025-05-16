@@ -1,3 +1,22 @@
 env/
 .env
+
+# Python virtualenv
+env/
+venv/
+pyvenv.cfg
+
+# Logs and runtime data
+logs/
+*.log
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Environment files
 .env
+
+# IDE/editor specific
+.vscode/
+.idea/
